@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Button ID Finder</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header>
+    <img src="../icons/icon48.png" alt="" width="32" height="32">
+    <div>
+      <h1>Button ID Finder</h1>
+      <p>Get button IDs for Google Tag Manager</p>
+    </div>
+  </header>
+
+  <div id="error" class="error" hidden></div>
+
+  <main>
+    <button id="pick" class="big primary">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg>
+      <span><b>Pick a button</b><small>Click any button or link on the page</small></span>
+    </button>
+    <button id="scan" class="big">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+      <span><b>List every button on this page</b><small>See them all and download a spreadsheet</small></span>
+    </button>
+  </main>
+
+  <section class="saved">
+    <div class="saved-head">
+      <h2>My saved list <span id="count" class="count">0</span></h2>
+      <div class="saved-actions">
+        <button id="export" class="link" disabled>Download CSV</button>
+        <button id="copyAll" class="link" disabled>Copy for Sheets</button>
+        <button id="clear" class="link danger" disabled>Clear</button>
+      </div>
+    </div>
+    <ul id="list"></ul>
+    <p id="empty" class="empty">Items you save with <b>"Save to my list"</b> show up here, from any website.</p>
+  </section>
+
+  <footer>
+    <span id="shortcut">Tip: shortcut <kbd>Alt</kbd>+<kbd>Shift</kbd>+<kbd>B</kbd> starts picking</span>
+    <span>Esc to stop</span>
+  </footer>
+  <a class="credit" href="https://www.scaleup42.com/" target="_blank" rel="noopener"><span>Your developer says you’re welcome</span> <span class="by">· by <b>S42</b></span></a>
+
+  <script src="popup.js"></script>
+</body>
+</html>
