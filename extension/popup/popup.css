@@ -50,4 +50,3 @@ kbd { background: #fff; border: 1px solid #d1d5db; border-bottom-width: 2px; bor
   padding: 8px 16px 10px; background: #f9fafb; border-top: 1px solid #f0f0f0; overflow-wrap: anywhere; text-wrap: balance; }
 .credit .by { white-space: nowrap; }
 .credit b { color: #6b7280; letter-spacing: .02em; }
-.credit:hover b { color: #4f46e5; }
