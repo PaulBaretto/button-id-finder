@@ -1,0 +1,49 @@
+# When the version in extension/manifest.json changes and is pushed to main,
+# this builds button-id-finder.zip and publishes it as a new GitHub Release.
+# The "latest" download link then always points to the newest version:
+#   https://github.com/<owner>/<repo>/releases/latest/download/button-id-finder.zip
+name: Release
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Read version from manifest
+        id: v
+        run: echo "version=$(jq -r .version extension/manifest.json)" >> "$GITHUB_OUTPUT"
+
+      - name: Check if this version is already released
+        id: check
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if gh release view "v${{ steps.v.outputs.version }}" >/dev/null 2>&1; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v${{ steps.v.outputs.version }} already released. Bump the version in extension/manifest.json to publish a new one."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build zip
+        if: steps.check.outputs.exists == 'false'
+        run: bash scripts/build.sh
+
+      - name: Publish release
+        if: steps.check.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release create "v${{ steps.v.outputs.version }}" dist/button-id-finder.zip \
+            --title "Button ID Finder v${{ steps.v.outputs.version }}" \
+            --notes "Download **button-id-finder.zip**, unzip it, and follow the install steps in README.md." \
+            --latest
