@@ -466,8 +466,8 @@
   };
   const LOGO = '<span class="logo"><i></i></span>';
   const TAGLINE = 'Your developer says you’re welcome';
-  const credit = () => `<a class="credit" href="https://www.scaleup42.com/" target="_blank" rel="noopener">` +
-    `${esc(TAGLINE)} <span class="by">· by <b>S42</b></span></a>`;
+  const credit = () => `<div class="credit">` +
+    `${esc(TAGLINE)} <span class="by">· by <b>Akainu (Paul)</b></span></div>`;
 
   function ensureUI() {
     if (S.host && S.host.isConnected) return;
