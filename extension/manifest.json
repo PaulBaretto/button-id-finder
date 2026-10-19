@@ -1,11 +1,15 @@
 {
   "manifest_version": 3,
   "name": "Button ID Finder",
-  "version": "1.0.4",
-  "author": "S42",
-  "homepage_url": "https://www.scaleup42.com/",
+  "version": "1.0.5",
+  "author": "Akainu (Paul)",
+  "homepage_url": "https://github.com/PaulBaretto/button-id-finder",
   "description": "Click any button or link to get its ID and a ready-to-use selector for Google Tag Manager. No coding needed.",
-  "permissions": ["activeTab", "scripting", "storage"],
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
   "background": {
     "service_worker": "background.js"
   },
