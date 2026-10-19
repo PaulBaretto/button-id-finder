@@ -466,8 +466,8 @@
   };
   const LOGO = '<span class="logo"><i></i></span>';
   const TAGLINE = 'Your developer says you’re welcome';
-  const credit = () => `<div class="credit">` +
-    `${esc(TAGLINE)} <span class="by">· by <b>Akainu (Paul)</b></span></div>`;
+  const credit = () => `<a class="credit" href="https://lets-talk-landing-form.netlify.app/" target="_blank" rel="noopener">` +
+    `${esc(TAGLINE)} <span class="by">· by <b>Akainu (Paul)</b></span></a>`;
 
   function ensureUI() {
     if (S.host && S.host.isConnected) return;
