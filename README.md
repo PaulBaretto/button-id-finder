@@ -4,11 +4,21 @@ A Chrome extension for the ads team: **click any button or link on a website and
 a clean CSS selector, and the exact Google Tag Manager trigger settings.** You don't need to ask a
 developer or open DevTools.
 
+<p align="center">
+  <a href="https://github.com/PaulBaretto/button-id-finder/releases/latest/download/button-id-finder.zip"><img alt="Download latest version" src="https://img.shields.io/badge/%E2%AC%87%20Download-latest%20version-4f46e5?style=for-the-badge&logo=googlechrome&logoColor=white" height="44"></a>
+  <br>
+  <img alt="Latest version" src="https://img.shields.io/github/v/release/PaulBaretto/button-id-finder?label=version&color=111827">
+</p>
+
+## Watch how it works
+
+https://github.com/user-attachments/assets/f6ebd426-e198-4a4b-9855-f949849fffb1
+
 ---
 
 ## Install (one time, about 2 minutes)
 
-1. **Download the latest version** (`button-id-finder.zip`) from the download page and unzip it
+1. **[Download the latest version](https://github.com/PaulBaretto/button-id-finder/releases/latest/download/button-id-finder.zip)** (`button-id-finder.zip`) and unzip it
    (on Mac, double-click it). Move the `button-id-finder` folder somewhere permanent, like Documents.
    If you delete it, the extension stops working.
 2. Open Chrome and go to **`chrome://extensions`**.
@@ -90,6 +100,7 @@ Open `practice/practice-page.html` in Chrome to try it. To use the extension on 
     CSS can't affect it).
   - `popup/` holds the toolbar popup and the saved list (`chrome.storage.local`, key `bif_saved`).
   - `practice/` is a practice page for training.
+  - `media/` holds the demo video and its poster image.
   - `scripts/build.sh` + `.github/workflows/release.yml`: on every push to `main`, if the manifest version is new,
     GitHub builds `button-id-finder.zip` and publishes it as a Release.
 - **Download link that always gives the latest version** (put this on the download page):
