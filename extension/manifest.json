@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Button ID Finder",
+  "version": "1.0.4",
+  "author": "S42",
+  "homepage_url": "https://www.scaleup42.com/",
+  "description": "Click any button or link to get its ID and a ready-to-use selector for Google Tag Manager. No coding needed.",
+  "permissions": ["activeTab", "scripting", "storage"],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Button ID Finder",
+    "default_popup": "popup/popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  },
+  "commands": {
+    "start-picker": {
+      "suggested_key": {
+        "default": "Alt+Shift+B",
+        "mac": "Alt+Shift+B"
+      },
+      "description": "Start picking a button on this page"
+    }
+  }
+}
