@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Practice page — Button ID Finder</title>
+<style>
+  body { margin: 0; font: 16px/1.5 system-ui, sans-serif; color: #1f2937; background: #f8fafc; }
+  header { display: flex; justify-content: space-between; align-items: center; padding: 16px 32px; background: #fff; border-bottom: 1px solid #e5e7eb; }
+  .logo { font-weight: 800; font-size: 20px; color: #0f766e; }
+  nav a { margin-left: 20px; color: #374151; text-decoration: none; }
+  .mobile-menu { display: none; }
+  .hero { padding: 64px 32px; text-align: center; background: linear-gradient(135deg, #ccfbf1, #e0e7ff); }
+  .hero h1 { font-size: 40px; margin: 0 0 12px; }
+  .btn { display: inline-flex; gap: 8px; align-items: center; padding: 12px 22px; border-radius: 10px; border: 0; font-size: 16px; font-weight: 600; cursor: pointer; text-decoration: none; }
+  .btn-primary { background: #0f766e; color: #fff; }
+  .btn-secondary { background: #fff; color: #0f766e; box-shadow: inset 0 0 0 2px #0f766e; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; padding: 40px 32px; }
+  .card { background: #fff; border-radius: 14px; padding: 22px; box-shadow: 0 2px 10px rgba(0,0,0,.06); }
+  form { max-width: 460px; margin: 0 auto 40px; background: #fff; padding: 24px; border-radius: 14px; display: grid; gap: 12px; }
+  input { padding: 10px; border: 1px solid #d1d5db; border-radius: 8px; font-size: 15px; }
+  footer { padding: 24px 32px; background: #0f172a; color: #cbd5e1; display: flex; gap: 24px; }
+  footer a { color: #5eead4; }
+  .note { max-width: 760px; margin: 0 auto; padding: 0 32px 30px; color: #475569; font-size: 14px; }
+</style>
+</head>
+<body>
+  <header>
+    <div class="logo">Sunrise Clinic (practice site)</div>
+    <nav>
+      <a href="/services">Services</a>
+      <a href="/about">About</a>
+      <a href="tel:+16045550123" class="header-phone">📞 (604) 555-0123</a>
+    </nav>
+    <div class="mobile-menu"><a href="/book" class="mobile-book">Book</a></div>
+  </header>
+
+  <section class="hero">
+    <h1>Feel better, faster.</h1>
+    <p>This is a practice page. Try picking each button and see what the extension tells you.</p>
+    <!-- 1. Perfect: permanent ID -->
+    <button id="book-appointment-btn" class="btn btn-primary">Book an appointment</button>
+    <!-- 2. Auto-generated ID (like Elementor / page builders) with an icon inside -->
+    <a id="elementor-a3f9c2e1" href="/free-consult" class="btn btn-secondary elementor-button"><span>★</span><span>Free consultation</span></a>
+  </section>
+
+  <section class="cards">
+    <!-- 3. No ID, only text — and the same text repeats -->
+    <div class="card"><h3>Physiotherapy</h3><p>Get moving again.</p><a href="/physio" class="card-link">Learn more</a></div>
+    <div class="card"><h3>Massage</h3><p>Relax and recover.</p><a href="/massage" class="card-link">Learn more</a></div>
+    <!-- 4. Tracking attribute added by a developer -->
+    <div class="card"><h3>Acupuncture</h3><p>Ancient and effective.</p><a href="/acupuncture" class="card-link" data-track="acupuncture-learn-more">Learn more</a></div>
+  </section>
+
+  <!-- 5. Form with an ID -->
+  <form id="contact-form" onsubmit="event.preventDefault(); alert('Sent!')">
+    <h3 style="margin:0">Request a call back</h3>
+    <input name="name" placeholder="Your name">
+    <input name="phone" placeholder="Phone number">
+    <button type="submit" class="btn btn-primary">Send request</button>
+  </form>
+
+  <p class="note">Things to try: pick the "Book an appointment" button (best case), the "Free consultation" button
+    (auto-generated ID), any "Learn more" link (no ID), the phone number at the top and bottom, and the "Send request" button
+    in the form. Then open the extension again and choose "List every button on this page".</p>
+
+  <footer>
+    <span>© Sunrise Clinic</span>
+    <!-- 6. Same phone link in header + footer -->
+    <a href="tel:+16045550123">Call (604) 555-0123</a>
+    <a href="mailto:hello@example.com">hello@example.com</a>
+  </footer>
+</body>
+</html>
