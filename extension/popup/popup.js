@@ -120,7 +120,7 @@ function showShortcut(shortcut) {
     $('setShortcut').addEventListener('click', (e) => { e.preventDefault(); chrome.tabs.create({ url: 'chrome://extensions/shortcuts' }); });
     return;
   }
-  el.innerHTML = 'Shortcut: ' + keys.map((k) => `<kbd>${esc(k)}</kbd>`).join('+');
+  el.innerHTML = 'Hover mode: ' + keys.map((k) => `<kbd>${esc(k)}</kbd>`).join('+');
 }
 showShortcut(isMac ? '⌥⇧B' : 'Alt+Shift+B');
 if (chrome.commands && chrome.commands.getAll) {
