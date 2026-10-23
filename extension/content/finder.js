@@ -1,6 +1,7 @@
 /*
  * Button ID Finder — content script.
  * Injected on demand (activeTab). Exposes window.__BIF.start('pick' | 'scan').
+ * 'pick' = hover mode: point at anything to see its ID live, click to pin the full details.
  * All UI lives in a Shadow DOM so the website's styles can't break it (and ours can't break the site).
  */
 (() => {
@@ -343,16 +344,41 @@
     .tag.below { bottom: auto; top: 100%; margin: 4px 0 0; }
     .tag b { color: #a5b4fc; font-weight: 600; }
 
-    .banner { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); pointer-events: auto; display: none;
+    .tip { position: fixed; pointer-events: none; display: none; width: max-content; max-width: 340px; background: #111827;
+      color: #f9fafb; border-radius: 10px; padding: 9px 11px; font-size: 12.5px; line-height: 1.4;
+      box-shadow: 0 12px 30px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.06); }
+    .tip-top { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; min-width: 0; }
+    .tip .chip { background: #312e81; color: #c7d2fe; font-size: 10px; padding: 2px 6px; }
+    .tip-text { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+    .tip-row { display: grid; grid-template-columns: 46px 1fr; gap: 8px; align-items: baseline; margin-top: 3px; }
+    .tip-k { color: #9ca3af; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    .tip-v { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; word-break: break-all; color: #fff; }
+    .tip-v.id { font-size: 14px; font-weight: 700; color: #a5b4fc; }
+    .tip-v .none { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-style: italic; color: #9ca3af; font-weight: 400; font-size: 12.5px; }
+    .tip .st { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; font-weight: 500; color: #9ca3af; margin-left: 4px; }
+    .tip .badge { font-size: 11.5px; }
+    .tip .b-great { color: #4ade80; } .tip .b-good { color: #2dd4bf; } .tip .b-okay { color: #fbbf24; } .tip .b-fragile { color: #f87171; }
+    .tip-foot { margin-top: 7px; padding-top: 6px; border-top: 1px solid #374151; color: #9ca3af; font-size: 11px; }
+    .tip-foot kbd, .tip kbd { background: #374151; color: #f9fafb; border-radius: 4px; padding: 0 5px; font-size: 10.5px; font-family: inherit; }
+
+    .banner { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); pointer-events: none; display: none;
+      transition: opacity .15s ease-out;
       align-items: center; gap: 12px; background: #111827; color: #f9fafb; font-size: 14px; padding: 9px 9px 9px 16px;
       border-radius: 999px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
     .banner .pulse { width: 9px; height: 9px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74,222,128,.6); animation: pulse 1.6s infinite; }
     @keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
     .banner kbd { background: #374151; border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+    .banner .btn, .banner .grip { pointer-events: auto; }
+    .banner.ghost { opacity: .12; }
+    .banner.ghost .btn, .banner.ghost .grip { pointer-events: none; }
+    .banner.dragging { opacity: 1 !important; transition: none; }
+    .grip { cursor: grab; color: #9ca3af; font-size: 15px; line-height: 1; padding: 4px 2px; margin-left: -6px; user-select: none; }
+    .grip:hover { color: #fff; }
+    .banner.dragging .grip { cursor: grabbing; }
 
     .card, .side { position: fixed; pointer-events: auto; background: #fff; color: #111827; font-size: 13px; line-height: 1.45;
       box-shadow: 0 20px 50px rgba(15,23,42,.28), 0 0 0 1px rgba(15,23,42,.08); display: none; flex-direction: column; }
-    .card { width: 390px; max-height: calc(100vh - 32px); bottom: 16px; right: 16px; border-radius: 14px; overflow: hidden; }
+    .card { width: 390px; max-height: calc(100vh - 80px); bottom: 16px; right: 16px; border-radius: 14px; overflow: hidden; }
     .card.left { right: auto; left: 16px; }
     .side { top: 0; right: 0; bottom: 0; width: 420px; max-width: 100vw; border-radius: 14px 0 0 14px; }
     .head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #111827; color: #fff; flex-shrink: 0; }
@@ -456,7 +482,8 @@
   const S = {
     host: null, root: null, mode: null, picking: false,
     hovered: null, selected: null, chain: [], copies: [],
-    scan: null, fromScan: false, raf: 0
+    scan: null, fromScan: false, raf: 0,
+    cache: new WeakMap(), textIndex: null, mx: 0, my: 0
   };
   const $ = (sel) => S.root.querySelector(sel);
   const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (ch) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch]));
@@ -478,8 +505,9 @@
     S.root.innerHTML = `<style>${CSS_TEXT}</style>
       <div class="hl"><div class="tag"></div></div>
       <div class="sel"></div>
-      <div class="banner"><span class="pulse"></span><span>Click any button or link to get its ID</span>
-        <span class="muted" style="color:#9ca3af">Press <kbd>Esc</kbd> to stop</span>
+      <div class="tip"></div>
+      <div class="banner"><span class="grip" title="Drag to move this bar (double-click to reset)">⠿</span><span class="pulse"></span><span>Hover over any button to see its ID · <b>Click</b> to pin details</span>
+        <span class="muted" style="color:#9ca3af"><kbd>C</kbd> copy · <kbd>Esc</kbd> stop</span>
         <button class="btn ghost small" data-act="close">Stop</button></div>
       <div class="card"></div>
       <div class="side"></div>
@@ -490,6 +518,11 @@
     S.root.addEventListener('change', onUIInput);
     S.root.addEventListener('mouseover', onUIHover);
     S.root.addEventListener('mouseleave', () => hideHl(), true);
+    S.root.addEventListener('pointerdown', onGripDown);
+    S.root.addEventListener('pointermove', onGripMove);
+    S.root.addEventListener('pointerup', onGripUp);
+    S.root.addEventListener('dblclick', (e) => { if (e.target.closest('.grip')) { setBannerPos(null); saveBannerPos(null); } });
+    loadBannerPos();
   }
 
   const inUI = (e) => S.host && e.composedPath().includes(S.host);
@@ -505,12 +538,57 @@
     const r = place(hl, el);
     if (!r) return;
     const tag = $('.tag');
+    if (S.mode === 'pick') { tag.style.display = 'none'; showTip(el, r); return; }
+    tag.style.display = '';
     const kind = kindOf(el);
     const extra = el.id ? `#${el.id}${looksRandom(el.id) ? ' (auto ID)' : ''}` : trunc(labelFor(el), 40);
     tag.innerHTML = `<b>${esc(kind)}</b> · ${esc(extra)}`;
     tag.classList.toggle('below', r.top < 34);
   }
-  function hideHl() { if (S.root) $('.hl').style.display = 'none'; S.hovered = null; }
+  function hideHl() { if (S.root) { $('.hl').style.display = 'none'; $('.tip').style.display = 'none'; } S.hovered = null; }
+
+  /* Hover tooltip: a light, cached analysis so moving the mouse stays smooth. */
+  function quick(el) {
+    let a = S.cache.get(el);
+    if (!a) {
+      if (!S.textIndex) S.textIndex = buildTextIndex();
+      a = analyze(el, { textIndex: S.textIndex });
+      S.cache.set(el, a);
+    }
+    return a;
+  }
+
+  function showTip(el, r) {
+    const tip = $('.tip');
+    let a;
+    try { a = quick(el); } catch (e) { tip.style.display = 'none'; return; }
+    const b = a.best;
+    let html = `<div class="tip-top"><span class="chip">${esc(a.kind)}</span><span class="tip-text">${esc(trunc(a.text, 60))}</span></div>`;
+    if (a.isFrame) {
+      html += `<div class="tip-row"><span class="tip-k">Note</span><span>Embedded content. Can't be tracked from this page.</span></div>`;
+    } else {
+      html += `<div class="tip-row"><span class="tip-k">ID</span><span class="tip-v ${a.id ? 'id' : ''}">${a.id
+        ? `${esc(a.id)}<span class="st">${looksRandom(a.id) ? 'auto-generated, may change' : 'permanent'}</span>`
+        : '<span class="none">No ID</span>'}</span></div>`;
+      if (b.kind !== 'id') {
+        html += `<div class="tip-row"><span class="tip-k">Use</span><span class="tip-v">${esc(trunc(b.copy, 90))}<span class="st">${esc(b.label)}</span></span></div>`;
+      }
+      html += `<div class="tip-row"><span class="tip-k">Rating</span><span><span class="badge b-${b.rating}">${RATINGS[b.rating].label}</span>
+        <span class="st">${b.count === 1 ? 'unique on page' : `matches ${b.count} elements`}</span></span></div>`;
+    }
+    html += `<div class="tip-foot"><b style="color:#e5e7eb">Click</b> to pin details${a.isFrame ? '' : ' · <kbd>C</kbd> to copy'}</div>`;
+    tip.innerHTML = html;
+    tip.style.display = 'block';
+    const w = tip.offsetWidth, h = tip.offsetHeight, vw = window.innerWidth, vh = window.innerHeight, gap = 8;
+    let top;
+    if (r.bottom + gap + h <= vh - 4) top = r.bottom + gap;          // below the element
+    else if (r.top - gap - h >= 4) top = r.top - gap - h;            // above it
+    else top = Math.min(Math.max(S.my + 18, 4), vh - h - 4);         // big element: follow the mouse
+    let left = r.bottom + gap + h > vh - 4 && r.top - gap - h < 4 ? S.mx + 14 : r.left;
+    left = Math.min(Math.max(left, 8), vw - w - 8);
+    tip.style.left = left + 'px';
+    tip.style.top = top + 'px';
+  }
   function refreshBoxes() {
     cancelAnimationFrame(S.raf);
     S.raf = requestAnimationFrame(() => {
@@ -542,6 +620,54 @@
     }
   }
 
+  /* ---------- Banner: draggable, fades out when you point at something behind it ---------- */
+
+  function setBannerPos(pos) {
+    const b = $('.banner');
+    if (!pos) { Object.assign(b.style, { left: '', top: '', transform: '' }); return; }
+    const w = b.offsetWidth || 600, h = b.offsetHeight || 46;
+    const left = Math.min(Math.max(pos.left, 4), window.innerWidth - w - 4);
+    const top = Math.min(Math.max(pos.top, 4), window.innerHeight - h - 4);
+    Object.assign(b.style, { left: left + 'px', top: top + 'px', transform: 'none' });
+  }
+  function saveBannerPos(pos) { try { chrome.storage.local.set({ bif_banner: pos }); } catch (e) { /* ignore */ } }
+  function loadBannerPos() {
+    try { chrome.storage.local.get({ bif_banner: null }, (res) => { if (S.root && res.bif_banner) setBannerPos(res.bif_banner); }); } catch (e) { /* ignore */ }
+  }
+  function onGripDown(e) {
+    const g = e.target.closest && e.target.closest('.grip');
+    if (!g) return;
+    e.preventDefault();
+    const r = $('.banner').getBoundingClientRect();
+    S.drag = { dx: e.clientX - r.left, dy: e.clientY - r.top };
+    $('.banner').classList.add('dragging');
+    g.setPointerCapture(e.pointerId);
+  }
+  function onGripMove(e) {
+    if (!S.drag) return;
+    setBannerPos({ left: e.clientX - S.drag.dx, top: e.clientY - S.drag.dy });
+  }
+  function onGripUp() {
+    if (!S.drag) return;
+    S.drag = null;
+    const b = $('.banner');
+    b.classList.remove('dragging');
+    const r = b.getBoundingClientRect();
+    saveBannerPos({ left: r.left, top: r.top });
+  }
+  function updateGhost(x, y) {
+    const b = S.root && $('.banner');
+    if (!b || b.style.display === 'none' || S.drag) return;
+    const r = b.getBoundingClientRect(), m = 24;
+    const near = x > r.left - m && x < r.right + m && y > r.top - m && y < r.bottom + m;
+    // Stay solid over the Stop button and the drag handle so they can still be used.
+    const hot = near && Array.from(b.querySelectorAll('.btn, .grip')).some((el) => {
+      const q = el.getBoundingClientRect();
+      return x >= q.left - 4 && x <= q.right + 4 && y >= q.top - 4 && y <= q.bottom + 4;
+    });
+    b.classList.toggle('ghost', near && !hot);
+  }
+
   /* ---------- Pick mode ---------- */
 
   function startPick() {
@@ -550,6 +676,9 @@
     S.picking = true;
     S.selected = null;
     S.fromScan = false;
+    S.chain = [];
+    S.cache = new WeakMap();
+    S.textIndex = null;
     $('.sel').style.display = 'none';
     $('.card').style.display = 'none';
     $('.side').style.display = 'none';
@@ -557,11 +686,14 @@
   }
 
   function onMove(e) {
-    if (!S.picking) return;
+    S.mx = e.clientX; S.my = e.clientY;
+    if (!S.picking || S.drag) return;
+    updateGhost(e.clientX, e.clientY);
     if (inUI(e)) { hideHl(); return; }
     const t = findTarget(e.composedPath()[0]);
     if (t === S.host) return;
     if (t !== S.hovered) { S.hovered = t; showHl(t); }
+    else if (S.mode === 'pick' && t) showHl(t);  // keep tooltip next to the mouse on big elements
   }
 
   function blocker(e) {
@@ -576,8 +708,8 @@
   }
 
   function select(el, fresh) {
-    S.picking = false;
-    $('.banner').style.display = 'none';
+    // In hover mode we keep inspecting after a click: the card is pinned, hovering still shows IDs.
+    if (S.mode !== 'pick') { S.picking = false; $('.banner').style.display = 'none'; }
     hideHl();
     if (fresh) S.chain = [el];
     S.selected = el;
@@ -597,7 +729,9 @@
       `Page: ${location.href}\nElement: ${a.kind} "${a.text}"\nHow to find it: ${a.record.cssSelector}\n` +
       `Suggested ID: ${suggestId(a.el)}\n\nThanks!`;
 
-    let html = `<div class="head"><div class="brand">${LOGO} Button ID Finder</div><button class="x" data-act="close" title="Close">×</button></div><div class="body">`;
+    const pinned = S.mode === 'pick';
+    let html = `<div class="head"><div class="brand">${LOGO} Button ID Finder${pinned ? ' <span class="chip" style="background:#312e81;color:#c7d2fe">Pinned</span>' : ''}</div>` +
+      `<button class="x" data-act="${pinned ? 'unpin' : 'close'}" title="${pinned ? 'Close details (keep hovering)' : 'Close'}">×</button></div><div class="body">`;
     if (S.fromScan) html += `<button class="btn ghost small" data-act="back" style="align-self:flex-start">← Back to the list</button>`;
     html += `<div class="what"><span class="chip">${esc(a.kind)}</span><span class="what-text" title="${esc(a.text)}">${esc(a.text)}</span></div>`;
 
@@ -669,8 +803,10 @@
         <button class="btn ghost" data-act="smaller" ${S.chain.length > 1 ? '' : 'disabled'}>↓ Back</button></div>
       <div class="row2">
         <button class="btn outline" data-act="save">Save to my list</button>
-        <button class="btn primary" data-act="again">Pick another</button></div>
-      <div class="hint" style="text-align:center">Wrong element? Use "Bigger area", or pick again.</div>
+        ${pinned ? '<button class="btn primary" data-act="unpin">Close details</button>' : '<button class="btn primary" data-act="again">Hover to find more</button>'}</div>
+      <div class="hint" style="text-align:center">${pinned
+        ? 'Keep hovering to check other buttons. Click one to pin it here. Esc to stop.'
+        : 'Wrong element? Use "Bigger area", or pick again.'}</div>
       ${credit()}
     </div>`;
 
@@ -806,6 +942,7 @@
       const card = $('.card');
       if (a === 'close') stop();
       else if (a === 'again') startPick();
+      else if (a === 'unpin') unpin();
       else if (a === 'bigger') {
         let p = S.selected && S.selected.parentElement;
         while (p && /^(BODY|HTML)$/.test(p.tagName) === false && p.getBoundingClientRect().width < 1) p = p.parentElement;
@@ -858,8 +995,25 @@
     if (it && it.visible) { S.hovered = it.el; showHl(it.el); } else hideHl();
   }
 
+  function unpin() {
+    S.selected = null;
+    S.chain = [];
+    $('.sel').style.display = 'none';
+    $('.card').style.display = 'none';
+  }
+
   function onKey(e) {
-    if (e.key === 'Escape' && S.mode) { e.stopPropagation(); stop(); }
+    if (e.key === 'Escape' && S.mode) { e.stopPropagation(); stop(); return; }
+    // C = copy the best value of whatever is under the mouse (hover mode only)
+    if (S.mode === 'pick' && S.picking && S.hovered && /^c$/i.test(e.key) && !e.metaKey && !e.ctrlKey && !e.altKey && !inUI(e)) {
+      let a;
+      try { a = quick(S.hovered); } catch (err) { return; }
+      if (a.isFrame) return;
+      e.preventDefault();
+      e.stopPropagation();
+      copyText(a.best.copy);
+      toast('Copied: ' + trunc(a.best.copy, 40));
+    }
   }
 
   function stop() {
