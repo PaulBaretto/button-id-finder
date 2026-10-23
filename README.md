@@ -35,20 +35,26 @@ the **↻ reload** icon on the Button ID Finder card.
 
 ## How to use it
 
-### Get the ID of one button
+### See button IDs by hovering (new in 1.1)
 1. Open the website and click the **Button ID Finder** icon.
-2. Click **Pick a button**. (Shortcut: **Option + Shift + B** on Mac, **Alt + Shift + B** on Windows.
+2. Click **Hover to see IDs**. (Shortcut: **Option + Shift + B** on Mac, **Alt + Shift + B** on Windows.
    To change it, go to `chrome://extensions/shortcuts`.)
-3. Move your mouse over the page. Whatever you point at is highlighted.
-4. **Click the button you want.** The click won't actually press the button or open the link.
-5. A panel shows:
+3. Move your mouse over the page. Every button or link you point at shows a small box with its **ID**,
+   the **best value to use** in GTM and its **reliability label**. No clicking needed.
+4. Press **C** to copy the value of whatever you're pointing at.
+5. **Click a button** to pin its full details in a panel (the click won't actually press the button or open the link):
    - **The best way to target it**, with a **Copy** button
    - A **reliability label**: Best / Good / OK / Risky
    - **Set it up in Google Tag Manager**: trigger type, condition and value to copy
-6. Press **Esc** or **×** to stop.
+6. You stay in hover mode while the panel is pinned. Keep hovering to check other buttons, or click another one to
+   pin it instead. **Close details** (or ×) closes the panel and keeps hover mode on.
+7. Press **Esc** or **Stop** to finish.
+
+**The bar at the top in the way?** Just point at what's behind it: the bar fades out and the element underneath
+is highlighted as normal. You can also drag the bar anywhere by its **⠿** handle (double-click the handle to put it back).
 
 **Highlighted the wrong thing?** (For example the text inside a button instead of the whole button.)
-Click **↑ Bigger area**.
+Click it, then use **↑ Bigger area**.
 
 ### Get every button on a page
 Click the icon, then **List every button on this page**. You can then:
