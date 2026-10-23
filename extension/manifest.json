@@ -1,10 +1,10 @@
 {
   "manifest_version": 3,
   "name": "Button ID Finder",
-  "version": "1.0.6",
+  "version": "1.1.0",
   "author": "Akainu (Paul)",
   "homepage_url": "https://lets-talk-landing-form.netlify.app/",
-  "description": "Click any button or link to get its ID and a ready-to-use selector for Google Tag Manager. No coding needed.",
+  "description": "Hover over any button or link to see its ID instantly, then click to get a ready-to-use selector for Google Tag Manager. No coding needed.",
   "permissions": [
     "activeTab",
     "scripting",
@@ -35,7 +35,7 @@
         "default": "Alt+Shift+B",
         "mac": "Alt+Shift+B"
       },
-      "description": "Start picking a button on this page"
+      "description": "Start hover mode: see button IDs as you move the mouse"
     }
   }
 }
