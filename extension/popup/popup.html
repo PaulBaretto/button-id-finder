@@ -2,16 +2,18 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Button ID Finder</title>
+  <title>TagScout</title>
   <link rel="stylesheet" href="popup.css">
+  <script src="theme.js"></script>
 </head>
 <body>
   <header>
-    <img src="../icons/icon48.png" alt="" width="32" height="32">
+    <img src="../icons/icon48.png" alt="" width="34" height="34">
     <div>
-      <h1>Button ID Finder</h1>
-      <p>Get button IDs for Google Tag Manager</p>
+      <h1>Tag<span>Scout</span></h1>
+      <p>Tracking toolkit for the ads team</p>
     </div>
+    <button id="theme" class="themebtn" title="Switch light / dark mode"></button>
   </header>
 
   <div id="error" class="error" hidden></div>
@@ -19,7 +21,11 @@
   <main>
     <button id="pick" class="big primary">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="8"/><circle cx="12" cy="12" r="3"/><path d="M12 1v3M12 20v3M1 12h3M20 12h3"/></svg>
-      <span><b>Hover to see IDs</b><small>Point at any button to see its ID. Click to pin details.</small></span>
+      <span><b>Hover to see button IDs</b><small>Point at any button to see its ID. Click to pin details.</small></span>
+    </button>
+    <button id="tags" class="big">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20.6 13.4 13.4 20.6a2 2 0 0 1-2.8 0L3 13V3h10l7.6 7.6a2 2 0 0 1 0 2.8Z"/><circle cx="7.5" cy="7.5" r="1.5"/></svg>
+      <span><b>See tracking tags <em class="new">New</em></b><small>GTM tags, GA4, Google Ads conversions and pixels on this page</small></span>
     </button>
     <button id="scan" class="big">
       <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M4 6h16M4 12h16M4 18h10"/></svg>

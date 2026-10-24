@@ -1,20 +1,23 @@
 {
   "manifest_version": 3,
-  "name": "Button ID Finder",
-  "version": "1.1.0",
+  "name": "TagScout",
+  "version": "2.1.0",
   "author": "Akainu (Paul)",
   "homepage_url": "https://lets-talk-landing-form.netlify.app/",
-  "description": "Hover over any button or link to see its ID instantly, then click to get a ready-to-use selector for Google Tag Manager. No coding needed.",
+  "description": "Tracking toolkit for ads teams: grab button IDs for Google Tag Manager and see every tag, pixel and conversion on a site.",
   "permissions": [
     "activeTab",
     "scripting",
     "storage"
   ],
+  "host_permissions": [
+    "https://www.googletagmanager.com/*"
+  ],
   "background": {
     "service_worker": "background.js"
   },
   "action": {
-    "default_title": "Button ID Finder",
+    "default_title": "TagScout",
     "default_popup": "popup/popup.html",
     "default_icon": {
       "16": "icons/icon16.png",

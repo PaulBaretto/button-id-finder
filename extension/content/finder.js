@@ -1,11 +1,11 @@
 /*
- * Button ID Finder — content script.
- * Injected on demand (activeTab). Exposes window.__BIF.start('pick' | 'scan').
+ * TagScout — content script.
+ * Injected on demand (activeTab). Exposes window.__TS.start('pick' | 'scan' | 'tags').
  * 'pick' = hover mode: point at anything to see its ID live, click to pin the full details.
  * All UI lives in a Shadow DOM so the website's styles can't break it (and ours can't break the site).
  */
 (() => {
-  if (window.__BIF) return;
+  if (window.__TS) return;
 
   /* =====================================================================
    * 1. SELECTOR ENGINE
@@ -331,153 +331,215 @@
    * ===================================================================== */
 
   const CSS_TEXT = `
-    :host { all: initial; }
+    :host { all: initial; color-scheme: light; --bg:#FFFFFF; --panel:#F7F8FA; --surface:#FFFFFF; --surface2:#EEF0F3; --line:#E3E6EB; --line2:#D3D8DF; --text:#1F2329; --strong:#0F1115; --text2:#3F4650; --muted:#5F6672; --dim:#8A919C; --hover:#E2E5EA; --great:#16A34A; --good:#0D9488; --okay:#B7791F; --fragile:#DC2626; --info:#2563EB; --sel:#0891B2; --warn-text:#7A4E0B; --warn-title:#5C3A06; --info-text:#1E40AF; --info-title:#1E3A8A; --shadow:rgba(15,23,42,.16); --overlay:rgba(15,17,21,.05); --head:#FFFFFF; --c-analytics:#2563EB; --c-pixels:#9333EA; --c-custom:#64748B; --c-paused:#D97706; --c-internal:#9CA3AF; --accent:#4E7D47; --accent-d:#436C3D; --on-accent:#FFFFFF; --accent-text:#436C3D; --c-ads:#4E7D47; }
+    :host([data-theme="dark"]) { color-scheme: dark; --bg:#0F1115; --panel:#14171E; --surface:#1A1D24; --surface2:#232733; --line:#2A2F3A; --line2:#353B48; --text:#E8EAED; --strong:#FFFFFF; --text2:#C9CDD3; --muted:#9AA0AA; --dim:#6B7280; --hover:#2C3140; --great:#4ADE80; --good:#2DD4BF; --okay:#FBBF24; --fragile:#F87171; --info:#60A5FA; --sel:#22D3EE; --warn-text:#FCD98A; --warn-title:#FDE7B0; --info-text:#BFD8FD; --info-title:#DCEAFE; --shadow:rgba(0,0,0,.45); --overlay:rgba(15,17,21,.10); --head:#0F1115; --c-analytics:#60A5FA; --c-pixels:#C084FC; --c-custom:#94A3B8; --c-paused:#FBBF24; --c-internal:#4B5563; --accent:#9DBF8A; --accent-d:#8CB07A; --on-accent:#0F1115; --accent-text:#AECB9D; --c-ads:#9DBF8A; }
     * { box-sizing: border-box; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
     .hl, .sel { position: fixed; pointer-events: none; border-radius: 4px; display: none; transition: all .06s ease-out; }
-    .hl { border: 2px solid #4f46e5; background: rgba(79,70,229,.12); box-shadow: 0 0 0 4000px rgba(15,23,42,.08); }
-    .sel { border: 2px solid #16a34a; background: rgba(22,163,74,.12); box-shadow: 0 0 0 3px rgba(22,163,74,.25); }
+    .hl { border: 2px solid var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); box-shadow: 0 0 0 4000px var(--overlay); }
+    .sel { border: 2px solid var(--sel); background: color-mix(in srgb, var(--sel) 10%, transparent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--sel) 25%, transparent); }
     .sel.flash { animation: flash 1s ease-out 2; }
-    @keyframes flash { 50% { box-shadow: 0 0 0 10px rgba(22,163,74,.35); } }
-    .tag { position: absolute; left: -2px; bottom: 100%; margin-bottom: 4px; background: #111827; color: #fff;
+    @keyframes flash { 50% { box-shadow: 0 0 0 10px color-mix(in srgb, var(--sel) 35%, transparent); } }
+    .tag { position: absolute; left: -2px; bottom: 100%; margin-bottom: 4px; background: var(--bg); color: var(--text);
       font-size: 12px; line-height: 1.3; padding: 4px 8px; border-radius: 6px; white-space: nowrap; max-width: 420px;
-      overflow: hidden; text-overflow: ellipsis; }
+      overflow: hidden; text-overflow: ellipsis; border: 1px solid var(--line); }
     .tag.below { bottom: auto; top: 100%; margin: 4px 0 0; }
-    .tag b { color: #a5b4fc; font-weight: 600; }
+    .tag b { color: var(--accent-text); font-weight: 600; }
 
-    .tip { position: fixed; pointer-events: none; display: none; width: max-content; max-width: 340px; background: #111827;
-      color: #f9fafb; border-radius: 10px; padding: 9px 11px; font-size: 12.5px; line-height: 1.4;
-      box-shadow: 0 12px 30px rgba(0,0,0,.3), 0 0 0 1px rgba(255,255,255,.06); }
+    .tip { position: fixed; pointer-events: none; display: none; width: max-content; max-width: 340px; background: var(--bg);
+      color: var(--text); border-radius: 10px; padding: 9px 11px; font-size: 12.5px; line-height: 1.4;
+      box-shadow: 0 12px 30px var(--shadow), 0 0 0 1px var(--line2); }
     .tip-top { display: flex; gap: 6px; align-items: center; margin-bottom: 6px; min-width: 0; }
-    .tip .chip { background: #312e81; color: #c7d2fe; font-size: 10px; padding: 2px 6px; }
+    .tip .chip { font-size: 10px; padding: 2px 6px; }
     .tip-text { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
     .tip-row { display: grid; grid-template-columns: 46px 1fr; gap: 8px; align-items: baseline; margin-top: 3px; }
-    .tip-k { color: #9ca3af; font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
-    .tip-v { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; word-break: break-all; color: #fff; }
-    .tip-v.id { font-size: 14px; font-weight: 700; color: #a5b4fc; }
-    .tip-v .none { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-style: italic; color: #9ca3af; font-weight: 400; font-size: 12.5px; }
-    .tip .st { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; font-weight: 500; color: #9ca3af; margin-left: 4px; }
+    .tip-k { color: var(--muted); font-size: 10.5px; font-weight: 600; text-transform: uppercase; letter-spacing: .05em; }
+    .tip-v { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; word-break: break-all; color: var(--strong); }
+    .tip-v.id { font-size: 14px; font-weight: 700; color: var(--accent-text); }
+    .tip-v .none { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-style: italic; color: var(--muted); font-weight: 400; font-size: 12.5px; }
+    .tip .st { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; font-size: 11px; font-weight: 500; color: var(--muted); margin-left: 4px; }
     .tip .badge { font-size: 11.5px; }
-    .tip .b-great { color: #4ade80; } .tip .b-good { color: #2dd4bf; } .tip .b-okay { color: #fbbf24; } .tip .b-fragile { color: #f87171; }
-    .tip-foot { margin-top: 7px; padding-top: 6px; border-top: 1px solid #374151; color: #9ca3af; font-size: 11px; }
-    .tip-foot kbd, .tip kbd { background: #374151; color: #f9fafb; border-radius: 4px; padding: 0 5px; font-size: 10.5px; font-family: inherit; }
+    .tip-foot { margin-top: 7px; padding-top: 6px; border-top: 1px solid var(--line); color: var(--muted); font-size: 11px; }
+    kbd { background: var(--surface2); color: var(--text); border: 1px solid var(--line2); border-radius: 4px; padding: 0 5px; font-size: 10.5px; font-family: inherit; }
 
     .banner { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); pointer-events: none; display: none;
-      transition: opacity .15s ease-out;
-      align-items: center; gap: 12px; background: #111827; color: #f9fafb; font-size: 14px; padding: 9px 9px 9px 16px;
-      border-radius: 999px; box-shadow: 0 10px 30px rgba(0,0,0,.25); }
-    .banner .pulse { width: 9px; height: 9px; border-radius: 50%; background: #4ade80; box-shadow: 0 0 0 0 rgba(74,222,128,.6); animation: pulse 1.6s infinite; }
-    @keyframes pulse { 70% { box-shadow: 0 0 0 9px rgba(74,222,128,0); } 100% { box-shadow: 0 0 0 0 rgba(74,222,128,0); } }
-    .banner kbd { background: #374151; border-radius: 4px; padding: 1px 6px; font-size: 12px; }
+      transition: opacity .15s ease-out; border: 1px solid var(--line2);
+      align-items: center; gap: 12px; background: var(--bg); color: var(--text); font-size: 14px; padding: 9px 9px 9px 16px;
+      border-radius: 999px; box-shadow: 0 10px 30px var(--shadow); }
+    .banner .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 60%, transparent); animation: pulse 1.6s infinite; }
+    @keyframes pulse { 70% { box-shadow: 0 0 0 9px transparent; } 100% { box-shadow: 0 0 0 0 transparent; } }
+    .banner kbd { padding: 1px 6px; font-size: 12px; }
     .banner .btn, .banner .grip { pointer-events: auto; }
     .banner.ghost { opacity: .12; }
     .banner.ghost .btn, .banner.ghost .grip { pointer-events: none; }
     .banner.dragging { opacity: 1 !important; transition: none; }
-    .grip { cursor: grab; color: #9ca3af; font-size: 15px; line-height: 1; padding: 4px 2px; margin-left: -6px; user-select: none; }
-    .grip:hover { color: #fff; }
+    .grip { cursor: grab; color: var(--muted); font-size: 15px; line-height: 1; padding: 4px 2px; margin-left: -6px; user-select: none; }
+    .grip:hover { color: var(--strong); }
     .banner.dragging .grip { cursor: grabbing; }
 
-    .card, .side { position: fixed; pointer-events: auto; background: #fff; color: #111827; font-size: 13px; line-height: 1.45;
-      box-shadow: 0 20px 50px rgba(15,23,42,.28), 0 0 0 1px rgba(15,23,42,.08); display: none; flex-direction: column; }
+    .card, .side { position: fixed; pointer-events: auto; background: var(--panel); color: var(--text); font-size: 13px; line-height: 1.45;
+      box-shadow: 0 20px 50px var(--shadow), 0 0 0 1px var(--line2); display: none; flex-direction: column; }
     .card { width: 390px; max-height: calc(100vh - 80px); bottom: 16px; right: 16px; border-radius: 14px; overflow: hidden; }
     .card.left { right: auto; left: 16px; }
     .side { top: 0; right: 0; bottom: 0; width: 420px; max-width: 100vw; border-radius: 14px 0 0 14px; }
-    .head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: #111827; color: #fff; flex-shrink: 0; }
-    .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
-    .logo { width: 20px; height: 20px; border-radius: 6px; background: #4f46e5; display: grid; place-items: center; }
-    .logo i { width: 8px; height: 8px; border: 2px solid #fff; border-radius: 50%; display: block; }
-    .x { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 18px; color: #d1d5db; }
-    .x:hover { background: #374151; color: #fff; }
+    .side.wide { width: 470px; }
+    .head { display: flex; align-items: center; justify-content: space-between; padding: 12px 14px; background: var(--head); color: var(--strong); flex-shrink: 0; border-bottom: 1px solid var(--line); }
+    .brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 14px; letter-spacing: .01em; }
+    .brand .sub { font-weight: 500; color: var(--muted); }
+    .logo { width: 22px; height: 22px; border-radius: 6px; background: var(--accent); display: grid; place-items: center; }
+    .logo i { width: 9px; height: 9px; border: 2.5px solid var(--on-accent); border-radius: 50%; display: block; }
+    .x { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; font-size: 18px; color: var(--muted); }
+    .x:hover { background: var(--surface2); color: var(--strong); }
     .body { padding: 14px; overflow: auto; display: flex; flex-direction: column; gap: 12px; }
 
     .what { display: flex; align-items: center; gap: 8px; min-width: 0; }
     .chip { flex-shrink: 0; font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: .03em; padding: 3px 8px;
-      border-radius: 999px; background: #eef2ff; color: #4338ca; }
+      border-radius: 999px; background: color-mix(in srgb, var(--accent) 12%, transparent); color: var(--accent-text); }
     .what-text { font-weight: 600; font-size: 15px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    .best { border-radius: 12px; padding: 12px; border: 1.5px solid; }
-    .r-great { background: #f0fdf4; border-color: #86efac; } .r-good { background: #f0fdfa; border-color: #5eead4; }
-    .r-okay { background: #fffbeb; border-color: #fcd34d; } .r-fragile { background: #fef2f2; border-color: #fca5a5; }
+    .best { border-radius: 12px; padding: 12px; border: 1.5px solid; background: var(--surface); }
+    .r-great { border-color: color-mix(in srgb, var(--great) 55%, transparent); } .r-good { border-color: color-mix(in srgb, var(--good) 55%, transparent); }
+    .r-okay { border-color: color-mix(in srgb, var(--okay) 55%, transparent); } .r-fragile { border-color: color-mix(in srgb, var(--fragile) 60%, transparent); }
     .best-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
-    .best-label { font-size: 12px; font-weight: 600; color: #4b5563; text-transform: uppercase; letter-spacing: .04em; }
+    .best-label { font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
     .badge { font-size: 12px; font-weight: 700; display: inline-flex; align-items: center; gap: 5px; }
     .badge::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: currentColor; }
-    .b-great { color: #15803d; } .b-good { color: #0f766e; } .b-okay { color: #b45309; } .b-fragile { color: #b91c1c; }
+    .b-great { color: var(--great); } .b-good { color: var(--good); } .b-okay { color: var(--okay); } .b-fragile { color: var(--fragile); }
     .val { display: flex; gap: 8px; align-items: center; }
-    code, .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: #fff;
-      border: 1px solid #e5e7eb; border-radius: 8px; padding: 7px 9px; flex: 1; min-width: 0; word-break: break-all; color: #111827; }
-    .best .val code { font-size: 15px; font-weight: 600; }
-    .note { margin-top: 8px; color: #374151; font-size: 12.5px; }
+    code, .code { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; background: var(--bg);
+      border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; flex: 1; min-width: 0; word-break: break-all; color: var(--text); }
+    .best .val code { font-size: 15px; font-weight: 600; color: var(--strong); }
+    .note { margin-top: 8px; color: var(--text2); font-size: 12.5px; }
     .match { display: inline-block; margin-top: 4px; font-size: 12px; font-weight: 600; }
-    .match.ok { color: #15803d; } .match.multi { color: #b45309; }
+    .match.ok { color: var(--great); } .match.multi { color: var(--okay); }
 
     button.btn { all: unset; cursor: pointer; font-size: 13px; font-weight: 600; padding: 8px 12px; border-radius: 8px;
       text-align: center; white-space: nowrap; transition: background .12s; }
-    .btn.primary { background: #4f46e5; color: #fff; } .btn.primary:hover { background: #4338ca; }
-    .btn.ghost { background: #f3f4f6; color: #111827; } .btn.ghost:hover { background: #e5e7eb; }
-    .btn.outline { box-shadow: inset 0 0 0 1.5px #c7d2fe; color: #4338ca; } .btn.outline:hover { background: #eef2ff; }
+    .btn.primary { background: var(--accent); color: var(--on-accent); } .btn.primary:hover { background: var(--accent-d); }
+    .btn.ghost { background: var(--surface2); color: var(--text); } .btn.ghost:hover { background: var(--hover); }
+    .btn.outline { box-shadow: inset 0 0 0 1.5px color-mix(in srgb, var(--accent) 45%, transparent); color: var(--accent-text); } .btn.outline:hover { background: color-mix(in srgb, var(--accent) 12%, transparent); }
     .btn.small { padding: 5px 9px; font-size: 12px; }
-    .btn[disabled] { opacity: .4; pointer-events: none; }
-    .btn.done { background: #16a34a !important; color: #fff !important; box-shadow: none; }
+    .btn[disabled] { opacity: .35; pointer-events: none; }
+    .btn.done { background: var(--great) !important; color: var(--on-accent) !important; box-shadow: none; }
 
-    .warn { background: #fff7ed; border: 1px solid #fed7aa; border-radius: 10px; padding: 10px 12px; color: #7c2d12; font-size: 12.5px; }
-    .warn b { display: block; margin-bottom: 4px; }
+    .warn { background: color-mix(in srgb, var(--okay) 8%, transparent); border: 1px solid color-mix(in srgb, var(--okay) 35%, transparent); border-radius: 10px; padding: 10px 12px; color: var(--warn-text); font-size: 12.5px; }
+    .warn b { display: block; margin-bottom: 4px; color: var(--warn-title); }
     .warn .btn { margin-top: 8px; }
-    .info { background: #eff6ff; border: 1px solid #bfdbfe; border-radius: 10px; padding: 10px 12px; color: #1e3a8a; font-size: 12.5px; }
+    .info { background: color-mix(in srgb, var(--info) 8%, transparent); border: 1px solid color-mix(in srgb, var(--info) 30%, transparent); border-radius: 10px; padding: 10px 12px; color: var(--info-text); font-size: 12.5px; }
+    .info b { color: var(--info-title); }
 
-    details { border: 1px solid #e5e7eb; border-radius: 10px; }
+    details { border: 1px solid var(--line); border-radius: 10px; background: var(--surface); }
     summary { cursor: pointer; padding: 10px 12px; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; }
     summary::-webkit-details-marker { display: none; }
-    summary::after { content: "›"; transform: rotate(90deg); color: #9ca3af; font-size: 16px; transition: transform .15s; }
+    summary::after { content: "›"; transform: rotate(90deg); color: var(--muted); font-size: 16px; transition: transform .15s; }
     details[open] summary::after { transform: rotate(-90deg); }
     .sec { padding: 0 12px 12px; display: flex; flex-direction: column; gap: 8px; }
     .kv { display: grid; grid-template-columns: 112px 1fr; gap: 6px 10px; align-items: start; }
-    .k { color: #6b7280; font-size: 12px; padding-top: 2px; }
+    .k { color: var(--muted); font-size: 12px; padding-top: 2px; }
     .v { word-break: break-word; }
-    .pill { display: inline-block; background: #f3f4f6; border-radius: 6px; padding: 1px 7px; font-weight: 600; margin: 0 2px 3px 0; }
+    .pill { display: inline-block; background: var(--surface2); border-radius: 6px; padding: 1px 7px; font-weight: 600; margin: 0 2px 3px 0; }
     .cond { display: flex; gap: 6px; align-items: center; }
-    .hint { color: #6b7280; font-size: 12px; }
-    .alt { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid #f3f4f6; }
+    .hint { color: var(--muted); font-size: 12px; }
+    .hint b { color: var(--text); }
+    .alt { display: flex; gap: 8px; align-items: center; padding: 8px 0; border-top: 1px solid var(--line); }
     .alt:first-child { border-top: 0; }
     .alt-main { flex: 1; min-width: 0; }
-    .alt-label { font-size: 12px; color: #4b5563; display: flex; gap: 8px; align-items: center; margin-bottom: 3px; }
+    .alt-label { font-size: 12px; color: var(--muted); display: flex; gap: 8px; align-items: center; margin-bottom: 3px; }
     .alt code { display: block; padding: 4px 7px; font-size: 12px; }
     .row2 { display: flex; gap: 8px; } .row2 .btn { flex: 1; }
-    .muted { color: #6b7280; }
+    .muted { color: var(--muted); }
 
-    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: #111827; color: #fff;
-      padding: 9px 16px; border-radius: 999px; font-size: 13px; font-weight: 600; opacity: 0; transition: all .2s; pointer-events: none; }
+    .toast { position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(20px); background: var(--accent); color: var(--on-accent);
+      padding: 9px 16px; border-radius: 999px; font-size: 13px; font-weight: 700; opacity: 0; transition: all .2s; pointer-events: none; }
     .toast.on { opacity: 1; transform: translateX(-50%) translateY(0); }
 
-    .tools { padding: 12px 14px; border-bottom: 1px solid #e5e7eb; display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
-    .summary-line { font-size: 14px; } .summary-line b { font-size: 18px; }
-    .search { all: unset; border: 1.5px solid #e5e7eb; border-radius: 9px; padding: 8px 10px; font-size: 13px; color: #111827; background: #fff; }
-    .search:focus { border-color: #818cf8; }
+    .tools { padding: 12px 14px; border-bottom: 1px solid var(--line); display: flex; flex-direction: column; gap: 10px; flex-shrink: 0; }
+    .summary-line { font-size: 14px; } .summary-line b { font-size: 18px; color: var(--accent-text); }
+    .search { all: unset; border: 1.5px solid var(--line2); border-radius: 9px; padding: 8px 10px; font-size: 13px; color: var(--text); background: var(--bg); }
+    .search:focus { border-color: var(--accent-text); }
     .filters { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
-    .f { all: unset; cursor: pointer; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: #f3f4f6; color: #374151; }
-    .f.on { background: #4f46e5; color: #fff; }
-    .chk { display: flex; gap: 6px; align-items: center; font-size: 12px; color: #4b5563; margin-left: auto; cursor: pointer; }
+    .f { all: unset; cursor: pointer; font-size: 12px; font-weight: 600; padding: 5px 10px; border-radius: 999px; background: var(--surface2); color: var(--text2); }
+    .f.on { background: var(--accent); color: var(--on-accent); }
+    .chk { display: flex; gap: 6px; align-items: center; font-size: 12px; color: var(--muted); margin-left: auto; cursor: pointer; }
+    .chk input { accent-color: var(--accent); }
     .list { overflow: auto; flex: 1; }
-    .item { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid #f3f4f6; cursor: pointer; }
-    .item:hover { background: #f9fafb; }
-    .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; }
-    .d-great { background: #16a34a; } .d-good { background: #14b8a6; } .d-okay { background: #f59e0b; } .d-fragile { background: #ef4444; }
+    .item { display: flex; gap: 10px; align-items: center; padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .item:hover { background: var(--surface); }
+    .dot { width: 9px; height: 9px; border-radius: 50%; flex-shrink: 0; display: inline-block; }
+    .d-great { background: var(--great); } .d-good { background: var(--good); } .d-okay { background: var(--okay); } .d-fragile { background: var(--fragile); }
     .item-main { flex: 1; min-width: 0; }
     .item-title { display: flex; gap: 6px; align-items: center; font-weight: 600; white-space: nowrap; overflow: hidden; }
     .item-title span:last-child { overflow: hidden; text-overflow: ellipsis; }
     .item .chip { font-size: 10px; padding: 2px 6px; }
-    .item-sel { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: #4b5563; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
-    .hidden-tag { font-size: 10px; color: #9ca3af; font-weight: 500; }
-    .empty { padding: 30px; text-align: center; color: #6b7280; }
-    .legend { display: flex; gap: 12px; font-size: 11.5px; color: #4b5563; flex-wrap: wrap; }
+    .item-sel { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 12px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; margin-top: 2px; }
+    .hidden-tag { font-size: 10px; color: var(--dim); font-weight: 500; }
+    .empty { padding: 30px; text-align: center; color: var(--muted); }
+    .legend { display: flex; gap: 12px; font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
     .legend span { display: inline-flex; align-items: center; gap: 4px; }
-    .credit { display: block; text-align: center; font-size: 11px; line-height: 1.4; color: #9ca3af; text-decoration: none;
+    .credit { display: block; text-align: center; font-size: 11px; line-height: 1.4; color: var(--dim); text-decoration: none;
       padding: 8px 12px 2px; max-width: 100%; overflow-wrap: anywhere; text-wrap: balance;
       display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
     .credit .by { white-space: nowrap; }
-    .credit b { color: #6b7280; font-weight: 700; letter-spacing: .02em; }
-    .credit:hover b { color: #4f46e5; }
-    .side .credit { border-top: 1px solid #e5e7eb; padding: 8px 0; flex-shrink: 0; }
-  `;
+    .credit b { color: var(--muted); font-weight: 700; letter-spacing: .02em; }
+    .credit:hover b { color: var(--accent-text); }
+    .side .credit { border-top: 1px solid var(--line); padding: 8px 0; flex-shrink: 0; }
+
+    /* ---------- Tag scanner ---------- */
+    .tabs { display: flex; gap: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 3px; }
+    .tab { all: unset; cursor: pointer; flex: 1; text-align: center; font-size: 12.5px; font-weight: 600; padding: 6px 8px; border-radius: 7px; color: var(--muted); }
+    .tab:hover { color: var(--text); }
+    .tab.on { background: var(--surface2); color: var(--strong); box-shadow: inset 0 -2px 0 var(--accent); }
+    .tab .n { font-size: 11px; color: var(--dim); margin-left: 4px; }
+    .tab.on .n { color: var(--accent-text); }
+    .stats { display: flex; gap: 8px; flex-wrap: wrap; }
+    .stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; min-width: 70px; }
+    .stat b { display: block; font-size: 18px; line-height: 1.1; color: var(--strong); }
+    .stat span { font-size: 11px; color: var(--muted); }
+    .stat.lime b { color: var(--accent-text); }
+    .grp { border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: hidden; }
+    .grp-h { display: flex; align-items: center; gap: 8px; padding: 9px 12px; font-weight: 700; font-size: 13px; border-bottom: 1px solid var(--line); }
+    .grp-h .cnt { margin-left: auto; font-size: 11.5px; color: var(--muted); font-weight: 600; }
+    .idrow { display: flex; gap: 8px; align-items: center; padding: 8px 12px; border-top: 1px solid var(--line); }
+    .idrow:first-of-type { border-top: 0; }
+    .idrow-main { flex: 1; min-width: 0; }
+    .idv { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 13px; font-weight: 600; color: var(--strong); word-break: break-all; }
+    .ids { font-size: 11.5px; color: var(--muted); margin-top: 1px; }
+    .ids b { color: var(--text2); font-weight: 600; }
+    .cat-ads { background: var(--c-ads); } .cat-analytics { background: var(--c-analytics); } .cat-pixels { background: var(--c-pixels); }
+    .cat-custom { background: var(--c-custom); } .cat-paused { background: var(--c-paused); } .cat-internal { background: var(--c-internal); }
+    .trow { padding: 10px 14px; border-bottom: 1px solid var(--line); cursor: pointer; }
+    .trow:hover { background: var(--surface); }
+    .trow.open { background: var(--surface); }
+    .trow-top { display: flex; gap: 8px; align-items: center; min-width: 0; }
+    .trow-name { font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .trow-tag { font-size: 10.5px; font-weight: 700; text-transform: uppercase; letter-spacing: .04em; padding: 1px 6px; border-radius: 999px; flex-shrink: 0; }
+    .t-paused { background: color-mix(in srgb, var(--okay) 15%, transparent); color: var(--okay); }
+    .t-warn { background: color-mix(in srgb, var(--fragile) 15%, transparent); color: var(--fragile); }
+    .trow-key { font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size: 12px; color: var(--accent-text); margin-top: 3px; word-break: break-all; }
+    .trow-fire { font-size: 12px; color: var(--muted); margin-top: 3px; }
+    .trow-fire b { color: var(--text2); font-weight: 600; }
+    .trow-more { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; cursor: default; }
+    .trow-more .kv { grid-template-columns: 120px 1fr; }
+    .trow-more code { padding: 4px 7px; font-size: 12px; }
+    .fire { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 7px 9px; font-size: 12px; }
+    .fire .ev { font-weight: 700; color: var(--strong); }
+    .fire ul { margin: 4px 0 0; padding-left: 16px; color: var(--text2); }
+    .fire.block { border-color: color-mix(in srgb, var(--fragile) 40%, transparent); }
+    .fire.block .ev { color: var(--fragile); }
+    .evrow { display: flex; gap: 10px; padding: 8px 14px; border-bottom: 1px solid var(--line); font-size: 12.5px; align-items: baseline; }
+    .evrow .i { color: var(--dim); font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px; width: 22px; flex-shrink: 0; text-align: right; }
+    .evrow .e { font-weight: 700; color: var(--strong); }
+    .evrow .e.gtm { color: var(--muted); font-weight: 600; }
+    .evrow .p { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11.5px; color: var(--muted); word-break: break-all; margin-top: 2px; }
+    .loading { padding: 40px 20px; text-align: center; color: var(--muted); }
+    .spin { width: 22px; height: 22px; border-radius: 50%; border: 2.5px solid var(--line2); border-top-color: var(--accent-text); margin: 0 auto 10px; animation: spin .8s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .pad { padding: 12px 14px; display: flex; flex-direction: column; gap: 12px; }
+    .sw { display: flex; flex-direction: column; gap: 8px; }
+  
+    .themebtn { all: unset; cursor: pointer; width: 28px; height: 28px; border-radius: 8px; display: grid; place-items: center; color: var(--muted); }
+    .themebtn:hover { background: var(--surface2); color: var(--strong); }
+    .head-r { display: flex; align-items: center; gap: 2px; }
+`;
 
   const S = {
     host: null, root: null, mode: null, picking: false,
@@ -492,6 +554,23 @@
     return `<button class="btn ${cls}" data-copy="${S.copies.length - 1}">${label}</button>`;
   };
   const LOGO = '<span class="logo"><i></i></span>';
+
+  /* ---------- Light / dark theme (shared with the popup through chrome.storage) ---------- */
+  const SUN = '<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+  const MOON = '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5Z"/></svg>';
+  const sysTheme = () => (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+  const themeBtn = () => `<button class="themebtn" data-act="theme" title="Switch to ${S.theme === 'dark' ? 'light' : 'dark'} mode">${S.theme === 'dark' ? SUN : MOON}</button>`;
+  function applyTheme(t) {
+    S.theme = t === 'light' || t === 'dark' ? t : sysTheme();
+    if (!S.host) return;
+    S.host.setAttribute('data-theme', S.theme);
+    S.root.querySelectorAll('.themebtn').forEach((b) => { b.outerHTML = themeBtn(); });
+  }
+  function loadTheme() {
+    applyTheme(S.theme);
+    try { chrome.storage.local.get({ ts_theme: '' }, (r) => applyTheme(r.ts_theme)); } catch (e) { /* ignore */ }
+  }
+  try { chrome.storage.onChanged.addListener((c) => { if (c.ts_theme) applyTheme(c.ts_theme.newValue); }); } catch (e) { /* ignore */ }
   const TAGLINE = 'Your developer says you’re welcome';
   const credit = () => `<a class="credit" href="https://lets-talk-landing-form.netlify.app/" target="_blank" rel="noopener">` +
     `${esc(TAGLINE)} <span class="by">· by <b>Akainu (Paul)</b></span></a>`;
@@ -499,15 +578,16 @@
   function ensureUI() {
     if (S.host && S.host.isConnected) return;
     S.host = document.createElement('div');
-    S.host.setAttribute('data-button-id-finder', '');
+    S.host.setAttribute('data-tagscout', '');
     S.host.style.cssText = 'all:initial;position:fixed;inset:0;z-index:2147483647;pointer-events:none;';
     S.root = S.host.attachShadow({ mode: 'open' });
+    S.host.setAttribute('data-theme', S.theme || sysTheme());
     S.root.innerHTML = `<style>${CSS_TEXT}</style>
       <div class="hl"><div class="tag"></div></div>
       <div class="sel"></div>
       <div class="tip"></div>
       <div class="banner"><span class="grip" title="Drag to move this bar (double-click to reset)">⠿</span><span class="pulse"></span><span>Hover over any button to see its ID · <b>Click</b> to pin details</span>
-        <span class="muted" style="color:#9ca3af"><kbd>C</kbd> copy · <kbd>Esc</kbd> stop</span>
+        <span class="muted"><kbd>C</kbd> copy · <kbd>Esc</kbd> stop</span>
         <button class="btn ghost small" data-act="close">Stop</button></div>
       <div class="card"></div>
       <div class="side"></div>
@@ -523,6 +603,7 @@
     S.root.addEventListener('pointerup', onGripUp);
     S.root.addEventListener('dblclick', (e) => { if (e.target.closest('.grip')) { setBannerPos(null); saveBannerPos(null); } });
     loadBannerPos();
+    loadTheme();
   }
 
   const inUI = (e) => S.host && e.composedPath().includes(S.host);
@@ -576,7 +657,7 @@
       html += `<div class="tip-row"><span class="tip-k">Rating</span><span><span class="badge b-${b.rating}">${RATINGS[b.rating].label}</span>
         <span class="st">${b.count === 1 ? 'unique on page' : `matches ${b.count} elements`}</span></span></div>`;
     }
-    html += `<div class="tip-foot"><b style="color:#e5e7eb">Click</b> to pin details${a.isFrame ? '' : ' · <kbd>C</kbd> to copy'}</div>`;
+    html += `<div class="tip-foot"><b style="color:var(--strong)">Click</b> to pin details${a.isFrame ? '' : ' · <kbd>C</kbd> to copy'}</div>`;
     tip.innerHTML = html;
     tip.style.display = 'block';
     const w = tip.offsetWidth, h = tip.offsetHeight, vw = window.innerWidth, vh = window.innerHeight, gap = 8;
@@ -730,8 +811,8 @@
       `Suggested ID: ${suggestId(a.el)}\n\nThanks!`;
 
     const pinned = S.mode === 'pick';
-    let html = `<div class="head"><div class="brand">${LOGO} Button ID Finder${pinned ? ' <span class="chip" style="background:#312e81;color:#c7d2fe">Pinned</span>' : ''}</div>` +
-      `<button class="x" data-act="${pinned ? 'unpin' : 'close'}" title="${pinned ? 'Close details (keep hovering)' : 'Close'}">×</button></div><div class="body">`;
+    let html = `<div class="head"><div class="brand">${LOGO} TagScout${pinned ? ' <span class="chip">Pinned</span>' : ''}</div>` +
+      `<div class="head-r">${themeBtn()}<button class="x" data-act="${pinned ? 'unpin' : 'close'}" title="${pinned ? 'Close details (keep hovering)' : 'Close'}">×</button></div></div><div class="body">`;
     if (S.fromScan) html += `<button class="btn ghost small" data-act="back" style="align-self:flex-start">← Back to the list</button>`;
     html += `<div class="what"><span class="chip">${esc(a.kind)}</span><span class="what-text" title="${esc(a.text)}">${esc(a.text)}</span></div>`;
 
@@ -855,7 +936,7 @@
     const s = S.scan;
     const visibleCount = s.items.filter((i) => i.visible).length;
     const side = $('.side');
-    side.innerHTML = `<div class="head"><div class="brand">${LOGO} Button ID Finder</div><button class="x" data-act="close" title="Close">×</button></div>
+    side.innerHTML = `<div class="head"><div class="brand">${LOGO} TagScout <span class="sub">· Buttons</span></div><div class="head-r">${themeBtn()}<button class="x" data-act="close" title="Close">×</button></div></div>
       <div class="tools">
         <div class="summary-line"><b>${visibleCount}</b> clickable items found on this page
           ${s.items.length > visibleCount ? `<span class="muted">(+${s.items.length - visibleCount} hidden)</span>` : ''}</div>
@@ -904,6 +985,312 @@
   }
   const fileStamp = () => `${location.hostname.replace(/^www\./, '')}-${new Date().toISOString().slice(0, 10)}`;
 
+  /* =====================================================================
+   * 3. TAG SCANNER: what tracking is already on this page
+   * ===================================================================== */
+
+  const CATS = [['all', 'All'], ['ads', 'Ads'], ['analytics', 'Analytics'], ['pixels', 'Pixels'], ['custom', 'Custom']];
+  const send = (msg) => new Promise((resolve) => {
+    try { chrome.runtime.sendMessage(msg, (r) => resolve(r || { ok: false, error: chrome.runtime.lastError ? chrome.runtime.lastError.message : 'No answer' })); }
+    catch (e) { resolve({ ok: false, error: String(e.message || e) }); }
+  });
+
+  async function startTags() {
+    ensureUI();
+    S.mode = 'tags';
+    S.picking = false;
+    $('.banner').style.display = 'none';
+    $('.card').style.display = 'none';
+    $('.sel').style.display = 'none';
+    S.tags = { loading: true, probe: null, containers: [], tab: 'overview', q: '', filter: 'all', internal: false, open: new Set(), hideGtm: true };
+    renderTags();
+    await loadProbe();
+    const T = S.tags;
+    T.containers = (T.probe ? T.probe.gtm : []).map((g) => ({ id: g.id, src: g.src, status: 'loading' }));
+    T.loading = false;
+    renderTags();
+    await Promise.all(T.containers.map(async (c) => {
+      const r = await send({ type: 'ts-fetch-gtm', id: c.id, src: c.src });
+      if (!r.ok) { c.status = 'error'; c.error = r.error; return; }
+      try { c.data = window.__TS_GTM.parseContainer(r.text, c.id); c.status = 'ready'; }
+      catch (e) { c.status = 'error'; c.error = 'Could not read this container (' + e.message + ')'; }
+    }));
+    if (S.mode === 'tags') renderTags();
+  }
+
+  async function loadProbe() {
+    const r = await send({ type: 'ts-probe' });
+    S.tags.probe = r.ok && r.data ? r.data : null;
+    S.tags.probeError = r.ok ? '' : r.error;
+  }
+
+  /* ---------- Build the overview from the page + containers ---------- */
+
+  function overview() {
+    const T = S.tags, P = T.probe || { google: [], directGtag: [], pixels: [], inline: [], sendTo: [], gtm: [] };
+    const groups = {};   // key -> Map(id -> Set(sources))
+    const addId = (g, id, src) => {
+      if (!id) return;
+      groups[g] = groups[g] || new Map();
+      if (!groups[g].has(id)) groups[g].set(id, new Set());
+      if (src) groups[g].get(id).add(src);
+    };
+    const kindOfId = (id) => (/^G-/.test(id) ? 'ga4' : /^AW-/.test(id) ? 'ads' : /^UA-/.test(id) ? 'ua' : /^DC-/.test(id) ? 'dc' : 'google');
+    const direct = new Set(P.directGtag || []);
+    (P.google || []).forEach((id) => addId(kindOfId(id), id, direct.has(id) ? 'added directly to the page' : ''));
+    (P.inline || []).forEach((id) => { if (!/^GTM-/.test(id)) addId(kindOfId(id), id, 'written in the page code'); });
+
+    const conversions = [];
+    (P.sendTo || []).forEach((v) => conversions.push({ value: v, where: 'page code (gtag)', fire: 'When the page code runs it' }));
+    const viaGtm = { ga4: new Set(), ads: new Set() };
+    T.containers.forEach((c) => {
+      if (!c.data) return;
+      c.data.tags.forEach((t) => {
+        if (t.realCategory === 'internal') return;
+        t.ids.forEach((x) => {
+          if (x.kind === 'conversion') {
+            conversions.push({ value: x.value, where: c.id + (t.paused ? ' (paused)' : ''), fire: t.firing.map((f) => f.text).join(' · OR · ') || 'No trigger', paused: t.paused });
+          } else if (x.kind === 'meta') addId('px:Meta Pixel', x.value, c.id);
+          else if (x.kind === 'other') addId('px:' + x.platform, x.value, c.id);
+          else if (x.kind === 'linkedin') addId('px:LinkedIn Insight', x.value, c.id);
+          else if (x.kind === 'uet') addId('px:Microsoft Ads (UET)', x.value, c.id);
+          else { addId(x.kind, x.value, c.id); if (viaGtm[x.kind] && !t.paused) viaGtm[x.kind].add(x.value); }
+        });
+        (t.extra || []).forEach((e) => { if (!e.ids.length && e.platform !== 'Data Layer push' && e.platform !== 'gtag.js code') addId('px:' + e.platform, '(ID not readable)', c.id); });
+      });
+    });
+    (P.pixels || []).forEach((p) => {
+      if (!p.ids.length) addId('px:' + p.platform, '(ID not readable)', 'running on the page');
+      p.ids.forEach((id) => addId('px:' + p.platform, id, 'running on the page'));
+    });
+    // Drop "(ID not readable)" when a real ID was found for the same platform
+    Object.keys(groups).forEach((g) => { if (g.startsWith('px:') && groups[g].size > 1) groups[g].delete('(ID not readable)'); });
+
+    const warnings = [];
+    if (groups.ua) warnings.push(['Universal Analytics is retired', `Google stopped collecting Universal Analytics data in July 2024. ${Array.from(groups.ua.keys()).join(', ')} does nothing now and can be removed.`]);
+    (P.directGtag || []).forEach((id) => {
+      if (viaGtm.ga4.has(id)) warnings.push(['GA4 may be counting twice', `${id} is added directly to the page AND through GTM. Page views and events may be counted twice.`]);
+    });
+    T.containers.forEach((c) => {
+      if (!c.data) return;
+      const p = c.data.tags.filter((t) => t.paused).length;
+      if (p) warnings.push(['Paused tags', `${c.id} has ${p} paused tag${p === 1 ? '' : 's'}. They're published but don't fire.`]);
+    });
+    return { groups, conversions, warnings };
+  }
+
+  /* ---------- Render ---------- */
+
+  function renderTags() {
+    const T = S.tags;
+    S.copies = [];
+    const side = $('.side');
+    side.classList.add('wide');
+    const tagCount = T.containers.reduce((n, c) => n + (c.data ? c.data.realCount : 0), 0);
+    const evCount = T.probe ? T.probe.dataLayers.reduce((n, d) => n + d.entries.length, 0) : 0;
+    let html = `<div class="head"><div class="brand">${LOGO} TagScout <span class="sub">· Tracking on this page</span></div><div class="head-r">${themeBtn()}<button class="x" data-act="close" title="Close">×</button></div></div>`;
+
+    if (T.loading) {
+      side.innerHTML = html + `<div class="loading"><div class="spin"></div>Looking for tags on this page…</div>`;
+      side.style.display = 'flex';
+      return;
+    }
+    html += `<div class="tools">
+      <div class="tabs">
+        <button class="tab ${T.tab === 'overview' ? 'on' : ''}" data-tab="overview">Overview</button>
+        <button class="tab ${T.tab === 'tags' ? 'on' : ''}" data-tab="tags">GTM tags<span class="n">${tagCount}</span></button>
+        <button class="tab ${T.tab === 'events' ? 'on' : ''}" data-tab="events">Events<span class="n">${evCount}</span></button>
+      </div>`;
+    if (T.tab === 'tags') {
+      html += `<input class="search tsearch" placeholder="Search tags: event name, ID, page…" value="${esc(T.q)}">
+        <div class="filters">${CATS.map(([k, l]) => `<button class="f ${T.filter === k ? 'on' : ''}" data-tfilter="${k}">${l}</button>`).join('')}
+          <label class="chk" title="Listeners GTM adds by itself to power click/form triggers"><input type="checkbox" class="tint" ${T.internal ? 'checked' : ''}> Built-in</label></div>`;
+    }
+    if (T.tab === 'events') {
+      html += `<div class="filters"><button class="btn ghost small" data-act="tags-refresh">↻ Refresh events</button>
+        <label class="chk"><input type="checkbox" class="thide" ${T.hideGtm ? 'checked' : ''}> Hide GTM system events</label></div>`;
+    }
+    html += `</div><div class="list">`;
+    html += T.tab === 'overview' ? overviewHtml() : T.tab === 'tags' ? tagsHtml() : eventsHtml();
+    html += `</div>`;
+    if (T.tab !== 'events') {
+      html += `<div class="tools" style="border-top:1px solid var(--line);border-bottom:0"><div class="row2">
+        <button class="btn primary" data-act="tags-csv" ${tagCount || T.probe ? '' : 'disabled'}>Download report (CSV)</button>
+        <button class="btn ghost" data-act="tags-tsv">Copy for Sheets</button></div></div>`;
+    }
+    html += credit();
+    side.innerHTML = html;
+    side.style.display = 'flex';
+  }
+
+  const catDot = (cat) => `<span class="dot cat-${cat}"></span>`;
+
+  function idRow(id, sources, note) {
+    const real = !/^\(/.test(id);
+    return `<div class="idrow"><div class="idrow-main"><div class="idv">${esc(id)}</div>
+      <div class="ids">${note ? esc(note) + (sources.length ? ' · ' : '') : ''}${sources.length ? 'Found in: <b>' + sources.map(esc).join('</b>, <b>') + '</b>' : ''}</div></div>
+      ${real ? copyBtn(id) : ''}</div>`;
+  }
+
+  function overviewHtml() {
+    const T = S.tags;
+    if (!T.probe) {
+      return `<div class="pad"><div class="warn"><b>Couldn't read this page</b>Reload the page and open TagScout again. ${esc(T.probeError || '')}</div></div>`;
+    }
+    const { groups, conversions, warnings } = overview();
+    const pxKeys = Object.keys(groups).filter((g) => g.startsWith('px:'));
+    const nGa4 = groups.ga4 ? groups.ga4.size : 0;
+    const nAds = groups.ads ? groups.ads.size : 0;
+    let h = `<div class="pad"><div class="stats">
+      <div class="stat lime"><b>${T.containers.length}</b><span>GTM container${T.containers.length === 1 ? '' : 's'}</span></div>
+      <div class="stat"><b>${conversions.length}</b><span>Ads conversion${conversions.length === 1 ? '' : 's'}</span></div>
+      <div class="stat"><b>${nGa4}</b><span>GA4 ID${nGa4 === 1 ? '' : 's'}</span></div>
+      <div class="stat"><b>${pxKeys.length}</b><span>Other pixel${pxKeys.length === 1 ? '' : 's'}</span></div></div>`;
+
+    warnings.forEach(([t, m]) => { h += `<div class="warn"><b>${esc(t)}</b>${esc(m)}</div>`; });
+
+    // GTM
+    h += `<div class="grp"><div class="grp-h">${catDot('custom')} Google Tag Manager<span class="cnt">${T.containers.length || 'none found'}</span></div>`;
+    if (!T.containers.length) h += `<div class="idrow"><div class="ids">No GTM container on this page.</div></div>`;
+    T.containers.forEach((c) => {
+      const note = c.status === 'loading' ? 'Reading container…' : c.status === 'error' ? `Couldn't read the tags: ${c.error}` :
+        `Version ${c.data.version} · ${c.data.realCount} tag${c.data.realCount === 1 ? '' : 's'}`;
+      h += idRow(c.id, [], note);
+    });
+    h += `</div>`;
+
+    const grp = (key, title, cat, note) => {
+      const m = groups[key];
+      if (!m || !m.size) return '';
+      return `<div class="grp"><div class="grp-h">${catDot(cat)} ${esc(title)}<span class="cnt">${m.size}</span></div>` +
+        Array.from(m.entries()).map(([id, src]) => idRow(id, Array.from(src), note)).join('') + `</div>`;
+    };
+    h += grp('ads', 'Google Ads account', 'ads');
+    if (conversions.length) {
+      h += `<div class="grp"><div class="grp-h">${catDot('ads')} Google Ads conversions<span class="cnt">${conversions.length}</span></div>` +
+        conversions.map((c) => `<div class="idrow"><div class="idrow-main"><div class="idv">${esc(c.value)}</div>
+          <div class="ids">${c.paused ? '<b style="color:var(--okay)">Paused</b> · ' : ''}Fires on: <b>${esc(c.fire)}</b></div>
+          <div class="ids">In: ${esc(c.where)}</div></div>${copyBtn(c.value)}</div>`).join('') + `</div>`;
+    }
+    h += grp('ga4', 'Google Analytics 4', 'analytics');
+    h += grp('google', 'Other Google tags', 'analytics');
+    h += grp('dc', 'Floodlight (Campaign Manager)', 'ads');
+    h += grp('ua', 'Universal Analytics (retired)', 'paused');
+    pxKeys.forEach((k) => { h += grp(k, k.slice(3), 'pixels'); });
+
+    if (!T.containers.length && !nGa4 && !nAds && !pxKeys.length && !conversions.length) {
+      h += `<div class="info"><b>No tracking found</b>This page doesn't seem to load Google Tag Manager, Google Analytics, Google Ads or any common ad pixel. If you just added something, reload the page and try again.</div>`;
+    }
+    h += `<div class="hint">Tag <b>names</b> you see inside GTM aren't published with the website, so TagScout shows each tag's type, IDs and trigger instead. Unpublished changes in GTM won't show until they're published.</div></div>`;
+    return h;
+  }
+
+  function tagMatches(t, c) {
+    const T = S.tags;
+    if (t.realCategory === 'internal' && !T.internal) return false;
+    if (T.filter !== 'all' && t.realCategory !== T.filter) return false;
+    if (T.q) {
+      const hay = [c.id, t.type, t.key, ...t.firing.map((f) => f.text), ...t.params.map((p) => p.name + ' ' + (p.value || (p.table || []).join(' ')))].join(' ').toLowerCase();
+      if (!hay.includes(T.q)) return false;
+    }
+    return true;
+  }
+
+  function tagsHtml() {
+    const T = S.tags;
+    if (!T.containers.length) return `<div class="empty">No Google Tag Manager container on this page.<br>Check the <b>Overview</b> tab for tags added another way.</div>`;
+    let h = '';
+    T.containers.forEach((c) => {
+      if (T.containers.length > 1) h += `<div class="grp-h" style="background:var(--bg)">${esc(c.id)}${c.data ? `<span class="cnt">v${esc(c.data.version)}</span>` : ''}</div>`;
+      if (c.status === 'loading') { h += `<div class="loading"><div class="spin"></div>Reading ${esc(c.id)}…</div>`; return; }
+      if (c.status === 'error') { h += `<div class="pad"><div class="warn"><b>Couldn't read ${esc(c.id)}</b>${esc(c.error)}</div></div>`; return; }
+      const rows = c.data.tags.filter((t) => tagMatches(t, c));
+      if (!rows.length) { h += `<div class="empty">No tags match.</div>`; return; }
+      // Most useful first: ads, analytics, pixels, custom, then paused / listeners
+      const rank = { ads: 0, analytics: 1, pixels: 2, custom: 3, paused: 4, internal: 5 };
+      rows.sort((a, b) => (rank[a.category] - rank[b.category]) || (a.index - b.index));
+      rows.forEach((t) => {
+        const key = `${c.id}:${t.index}`;
+        const open = T.open.has(key);
+        const f = t.firing[0];
+        h += `<div class="trow ${open ? 'open' : ''}" data-tkey="${esc(key)}">
+          <div class="trow-top">${catDot(t.category)}<span class="trow-name">${esc(t.type)}</span>
+            ${t.paused ? '<span class="trow-tag t-paused">Paused</span>' : ''}
+            ${!t.paused && t.noTrigger && t.realCategory !== 'internal' ? `<span class="trow-tag t-warn">${t.inSequence ? 'In a sequence' : 'No trigger'}</span>` : ''}</div>
+          ${t.key ? `<div class="trow-key">${esc(trunc(t.key, 160))}</div>` : ''}
+          <div class="trow-fire">${f ? `Fires on: <b>${esc(f.event)}</b>${f.conditions.length ? ' · ' + esc(trunc(f.conditions.join(' AND '), 140)) : ''}${t.firing.length > 1 ? ` <span class="muted">(+${t.firing.length - 1} more)</span>` : ''}`
+            : t.paused ? 'Paused in GTM, so it never fires.' : t.inSequence ? 'Fires before/after another tag (tag sequencing).' : 'Has no trigger, so it never fires on its own.'}</div>`;
+        if (open) h += tagDetails(t);
+        h += `</div>`;
+      });
+    });
+    return h;
+  }
+
+  function tagDetails(t) {
+    let h = `<div class="trow-more">`;
+    if (t.key && !/^Custom HTML/.test(t.type)) h += `<div class="cond"><code>${esc(t.key)}</code>${copyBtn(t.key)}</div>`;
+    t.firing.forEach((f) => {
+      h += `<div class="fire"><span class="ev">Fires on: ${esc(f.event)}</span>${f.conditions.length ? `<ul>${f.conditions.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`;
+    });
+    t.blocking.forEach((f) => {
+      h += `<div class="fire block"><span class="ev">Blocked on: ${esc(f.event)}</span>${f.conditions.length ? `<ul>${f.conditions.map((x) => `<li>${esc(x)}</li>`).join('')}</ul>` : ''}</div>`;
+    });
+    if (t.params.length) {
+      h += `<div class="kv">` + t.params.map((p) => {
+        if (p.table) return `<div class="k">${esc(p.name)}</div><div class="v">${p.table.map(([k, v]) => `<div><span class="pill">${esc(k)}</span> ${esc(v)}</div>`).join('')}</div>`;
+        const long = p.value.length > 120;
+        return `<div class="k">${esc(p.name)}</div><div class="v cond"><code style="${long ? 'max-height:140px;overflow:auto;white-space:pre-wrap' : ''}">${esc(long ? p.value.slice(0, 3000) : p.value)}</code>${copyBtn(p.value)}</div>`;
+      }).join('') + `</div>`;
+    }
+    h += `<div class="hint">GTM tag ID ${esc(t.tagId)} · type <code style="display:inline;padding:0 4px">${esc(t.fn)}</code></div></div>`;
+    return h;
+  }
+
+  function eventsHtml() {
+    const T = S.tags;
+    if (!T.probe || !T.probe.dataLayers.length) return `<div class="empty">No data layer on this page, so nothing has been sent to GTM yet.</div>`;
+    let h = `<div class="pad" style="padding-bottom:4px"><div class="hint">Everything sent to the data layer so far, oldest first. Click around the page, then hit <b>Refresh</b> to see new events (for example after a form is sent).</div></div>`;
+    T.probe.dataLayers.forEach((d) => {
+      if (T.probe.dataLayers.length > 1 || d.name !== 'dataLayer') h += `<div class="grp-h" style="background:var(--bg)">${esc(d.name)}<span class="cnt">${d.total} entries</span></div>`;
+      const start = d.total - d.entries.length;
+      const rows = d.entries.map((e, i) => [e, start + i]).filter(([e]) => !(T.hideGtm && e.kind === 'push' && /^gtm\./.test(e.name)));
+      if (!rows.length) { h += `<div class="empty">Only GTM system events so far.</div>`; return; }
+      h += rows.map(([e, i]) => {
+        let title, cls = 'e';
+        if (e.kind === 'gtag') title = `gtag ${e.command}${e.name ? ' · ' + e.name : ''}`;
+        else if (e.name) { title = e.name; if (/^gtm\./.test(e.name)) cls += ' gtm'; }
+        else title = '(data only)';
+        const data = e.data ? JSON.stringify(e.data) : '';
+        return `<div class="evrow"><span class="i">${i}</span><div style="min-width:0;flex:1"><div class="${cls}">${esc(title)}</div>${data && data !== '{}' ? `<div class="p">${esc(trunc(data, 300))}</div>` : ''}</div></div>`;
+      }).join('');
+    });
+    return h;
+  }
+
+  /* ---------- Report ---------- */
+
+  const TAG_COLS = ['Page URL', 'Container', 'Tag type', 'Category', 'Status', 'Main ID / event', 'Fires on', 'Blocked on', 'GTM tag ID'];
+  function tagRows() {
+    const T = S.tags, rows = [];
+    const { groups, conversions } = overview();
+    T.containers.forEach((c) => {
+      if (!c.data) { rows.push([location.href, c.id, '', '', c.error || 'Not read', '', '', '', '']); return; }
+      c.data.tags.filter((t) => t.realCategory !== 'internal').forEach((t) => rows.push([
+        location.href, c.id, t.type, t.realCategory, t.paused ? 'Paused' : t.noTrigger ? 'No trigger' : 'Active', t.key,
+        t.firing.map((f) => f.text).join(' | '), t.blocking.map((f) => f.text).join(' | '), t.tagId
+      ]));
+    });
+    // Things found outside GTM
+    const names = { ga4: 'GA4', ads: 'Google Ads', google: 'Google tag', ua: 'Universal Analytics', dc: 'Floodlight' };
+    Object.keys(groups).forEach((g) => groups[g].forEach((src, id) => {
+      const s = Array.from(src).filter((x) => !/^GTM-/.test(x));
+      if (s.length) rows.push([location.href, '(not GTM)', g.startsWith('px:') ? g.slice(3) : names[g] || g, g.startsWith('px:') ? 'pixels' : g === 'ads' ? 'ads' : 'analytics', 'On page', id, s.join(', '), '', '']);
+    }));
+    conversions.filter((c) => !/^GTM-/.test(c.where)).forEach((c) => rows.push([location.href, '(not GTM)', 'Google Ads conversion (gtag)', 'ads', 'On page', c.value, c.fire, '', '']));
+    return [TAG_COLS, ...rows];
+  }
+
   /* ---------- Saved list ---------- */
 
   function saveRecord(rec) {
@@ -936,11 +1323,16 @@
     }
     const f = t.closest('[data-filter]');
     if (f) { S.scan.filter = f.dataset.filter; renderSide(); return; }
+    const tb = t.closest('[data-tab]');
+    if (tb) { S.tags.tab = tb.dataset.tab; renderTags(); $('.list').scrollTop = 0; return; }
+    const tf = t.closest('[data-tfilter]');
+    if (tf) { S.tags.filter = tf.dataset.tfilter; renderTags(); return; }
     const act = t.closest('[data-act]');
     if (act) {
       const a = act.dataset.act;
       const card = $('.card');
-      if (a === 'close') stop();
+      if (a === 'theme') { const t = S.theme === 'dark' ? 'light' : 'dark'; applyTheme(t); try { chrome.storage.local.set({ ts_theme: t }); } catch (e) { /* ignore */ } }
+      else if (a === 'close') stop();
       else if (a === 'again') startPick();
       else if (a === 'unpin') unpin();
       else if (a === 'bigger') {
@@ -954,6 +1346,21 @@
       else if (a === 'back') backToList();
       else if (a === 'csv') { download(`button-ids-${fileStamp()}.csv`, toCsv(visibleRecords()), 'text/csv;charset=utf-8'); toast('Spreadsheet downloaded'); }
       else if (a === 'tsv') { copyText(toTsv(visibleRecords())); toast('Copied — paste into Google Sheets or Excel'); }
+      else if (a === 'tags-csv') {
+        download(`tags-${fileStamp()}.csv`, tagRows().map((r) => r.map((v) => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\r\n'), 'text/csv;charset=utf-8');
+        toast('Report downloaded');
+      }
+      else if (a === 'tags-tsv') { copyText(tagRows().map((r) => r.map((v) => String(v ?? '').replace(/[\t\r\n]+/g, ' ')).join('\t')).join('\n')); toast('Copied — paste into Google Sheets or Excel'); }
+      else if (a === 'tags-refresh') { act.textContent = 'Refreshing…'; loadProbe().then(() => { renderTags(); toast('Events refreshed'); }); }
+      return;
+    }
+    const tr = t.closest('.trow');
+    if (tr && !t.closest('.trow-more')) {
+      const k = tr.dataset.tkey;
+      if (S.tags.open.has(k)) S.tags.open.delete(k); else S.tags.open.add(k);
+      const y = $('.list').scrollTop;
+      renderTags();
+      $('.list').scrollTop = y;
       return;
     }
     const item = t.closest('.item');
@@ -985,6 +1392,14 @@
   function onUIInput(e) {
     if (e.target.classList.contains('search')) { S.scan.q = e.target.value.trim().toLowerCase(); renderList(); }
     if (e.target.classList.contains('hid')) { S.scan.hidden = e.target.checked; renderSide(); }
+    if (e.target.classList.contains('tsearch') && e.type === 'input') {
+      S.tags.q = e.target.value.trim().toLowerCase();
+      const pos = e.target.selectionStart;
+      renderTags();
+      const inp = $('.tsearch'); inp.focus(); inp.setSelectionRange(pos, pos);
+    }
+    if (e.target.classList.contains('tint')) { S.tags.internal = e.target.checked; renderTags(); }
+    if (e.target.classList.contains('thide')) { S.tags.hideGtm = e.target.checked; renderTags(); }
   }
 
   function onUIHover(e) {
@@ -1021,6 +1436,7 @@
     S.picking = false;
     S.selected = null;
     S.hovered = null;
+    S.tags = null;
     if (S.host) S.host.remove();
     S.host = S.root = null;
   }
@@ -1032,8 +1448,11 @@
   window.addEventListener('scroll', refreshBoxes, true);
   window.addEventListener('resize', refreshBoxes);
 
-  window.__BIF = {
-    start(mode) { mode === 'scan' ? startScan() : startPick(); },
+  window.__TS = {
+    start(mode) {
+      if (S.root) $('.side').classList.remove('wide');
+      mode === 'scan' ? startScan() : mode === 'tags' ? startTags() : startPick();
+    },
     stop,
     // exposed for testing
     _analyze: (el) => analyze(el),
