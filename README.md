@@ -1,6 +1,6 @@
 # TagScout
 
-*(formerly TagScout)*
+*(formerly Button ID Finder)*
 
 The ads team's tracking toolkit for Chrome:
 
@@ -10,7 +10,7 @@ The ads team's tracking toolkit for Chrome:
 No need to ask a developer or open DevTools.
 
 <p align="center">
-  <a href="https://github.com/PaulBaretto/button-id-finder/releases/latest/download/button-id-finder.zip"><img alt="Download latest version" src="https://img.shields.io/badge/%E2%AC%87%20Download-latest%20version-C6F432?style=for-the-badge&logo=googlechrome&logoColor=0F1115" height="44"></a>
+  <a href="https://github.com/PaulBaretto/button-id-finder/releases/latest/download/button-id-finder.zip"><img alt="Download latest version" src="https://img.shields.io/badge/%E2%AC%87%20Download-latest%20version-9DBF8A?style=for-the-badge&logo=googlechrome&logoColor=0F1115" height="44"></a>
   <br>
   <img alt="Latest version" src="https://img.shields.io/github/v/release/PaulBaretto/button-id-finder?label=version&color=0F1115">
 </p>
