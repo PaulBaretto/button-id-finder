@@ -44,6 +44,6 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release create "v${{ steps.v.outputs.version }}" dist/button-id-finder.zip \
-            --title "Button ID Finder v${{ steps.v.outputs.version }}" \
+            --title "TagScout v${{ steps.v.outputs.version }}" \
             --notes "Download **button-id-finder.zip**, unzip it, and follow the install steps in README.md." \
             --latest
